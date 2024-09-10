@@ -1,7 +1,10 @@
 [package]
 name = "kur"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+description = "One Package Manager To Rule Them All"
+license = "MIT"
+documentation = "https://github.com/dammerung2718/kur"
 
 [dependencies]
 clap = { version = "4.5.17", features = ["derive"] }
