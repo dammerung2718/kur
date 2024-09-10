@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::{fs, process, str};
+use std::{collections::HashMap, fmt, fs, process, str};
 
 const CARGO_TAG: &str = "#cargo";
 const UBUNTU_TAG: &str = "#ubuntu";
@@ -23,22 +23,42 @@ enum Cmd {
 
 #[derive(Debug, Clone)]
 struct Package<'a> {
+    line_no: u64,
     name: &'a str,
     tags: Vec<&'a str>,
 }
 
-fn main() {
-    let cli = Cli::parse();
-    match cli.cmd {
-        Cmd::Fmt => fmt(),
-        Cmd::Sync => sync(),
+struct DuplicateError<'a> {
+    first: &'a Package<'a>,
+    second: &'a Package<'a>,
+}
+
+impl<'a> fmt::Display for DuplicateError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "package '{}' is mentioned twice on lines {} and {}",
+            self.first.name, self.first.line_no, self.second.line_no
+        )
     }
 }
 
-fn fmt() {
+fn main() {
     let kurfile = fs::read_to_string("kurfile").expect("read fail");
     let packages = get_packages(&kurfile);
+    if let Some(err) = check_packages(&packages) {
+        println!("{err}");
+        process::exit(1);
+    }
 
+    let cli = Cli::parse();
+    match cli.cmd {
+        Cmd::Fmt => fmt(&packages),
+        Cmd::Sync => sync(&packages),
+    }
+}
+
+fn fmt(packages: &[Package]) {
     let mut formatted: Vec<String> = Vec::new();
 
     let common: Vec<_> = packages.iter().filter(|p| p.tags.len() > 1).collect();
@@ -99,16 +119,14 @@ fn fmt_packages(packages: &[&Package]) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 
-fn sync() {
-    let kurfile = fs::read_to_string("kurfile").expect("read fail");
-    let packages = get_packages(&kurfile);
+fn sync(packages: &[Package]) {
     let ostype = os_type::current_platform().os_type;
 
     println!(">>> Installing {ostype:?} Packages");
-    install_platform_packages(ostype, &packages);
+    install_platform_packages(ostype, packages);
 
     println!(">>> Installing Cargo Packages");
-    install_cargo(&packages);
+    install_cargo(packages);
 
     println!(">>> All Good");
 }
@@ -135,7 +153,7 @@ fn install_platform_packages(ostype: os_type::OSType, packages: &[Package]) {
         }
         _ => {
             println!("Unsupported platform {ostype:?}");
-            process::exit(0);
+            process::exit(1);
         }
     }
 }
@@ -178,13 +196,35 @@ fn install_ubuntu(packages: &[&Package]) {
         .expect("install fail");
 }
 
+fn check_packages<'a>(packages: &'a [Package]) -> Option<DuplicateError<'a>> {
+    check_duplicates(packages)
+}
+
+fn check_duplicates<'a>(packages: &'a [Package]) -> Option<DuplicateError<'a>> {
+    let mut seen: HashMap<&str, &Package> = HashMap::new();
+
+    for p in packages {
+        if let Some(last_seen) = seen.get(&p.name) {
+            return Some(DuplicateError {
+                first: last_seen,
+                second: p,
+            });
+        }
+        seen.insert(p.name, p);
+    }
+
+    None
+}
+
 fn get_packages(kurfile: &str) -> Vec<Package> {
     let mut packages: Vec<_> = kurfile
         .split('\n')
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .map(|l| l.split(' '))
-        .map(|mut parts| Package {
+        .enumerate()
+        .map(|(n, l)| (n, l.trim()))
+        .filter(|(_, l)| !l.is_empty() && !l.starts_with('#'))
+        .map(|(n, l)| (n, l.split(' ')))
+        .map(|(n, mut parts)| Package {
+            line_no: n as u64,
             name: parts.next().unwrap(),
             tags: parts.filter(|p| p.starts_with('#')).collect(),
         })
