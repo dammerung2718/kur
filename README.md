@@ -33,3 +33,11 @@ Supported platforms are
 - Cargo
 - OSX/Homebrew
 - Ubuntu
+
+## Installation
+
+Run this
+
+```
+cargo install kur
+```
