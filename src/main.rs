@@ -161,7 +161,6 @@ fn install_cargo(packages: &[Package]) {
     process::Command::new("cargo")
         .arg("install")
         .args(packages)
-        .stderr(process::Stdio::null())
         .status()
         .expect("install fail");
 }
