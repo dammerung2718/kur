@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::{collections::HashMap, fmt, fs, process, str};
 
+const KURFILE: &str = "kurfile";
 const CARGO_TAG: &str = "#cargo";
 const UBUNTU_TAG: &str = "#ubuntu";
 const BREW_TAG: &str = "#brew";
@@ -44,7 +45,7 @@ impl<'a> fmt::Display for DuplicateError<'a> {
 }
 
 fn main() {
-    let kurfile = fs::read_to_string("kurfile").expect("read fail");
+    let kurfile = fs::read_to_string(KURFILE).expect("read fail");
     let packages = get_packages(&kurfile);
     if let Some(err) = check_packages(&packages) {
         println!("{err}");
@@ -103,7 +104,7 @@ fn fmt(packages: &[Package]) {
     }
 
     let formatted = formatted.join("\n");
-    fs::write("kurfile", formatted).expect("write fail");
+    fs::write(KURFILE, formatted).expect("write fail");
 }
 
 fn fmt_packages(packages: &[&Package]) -> Vec<String> {
@@ -172,12 +173,20 @@ fn install_brew(packages: &[&Package]) {
 }
 
 fn install_cargo(packages: &[Package]) {
+    process::Command::new("cargo")
+        .arg("install")
+        .arg("cargo-binstall")
+        .status()
+        .expect("install fail");
+
     let packages = packages
         .iter()
         .filter(|p| p.tags.contains(&CARGO_TAG))
         .map(|p| p.name);
     process::Command::new("cargo")
-        .arg("install")
+        .arg("binstall")
+        .arg("--strategies")
+        .arg("crate-meta-data")
         .args(packages)
         .status()
         .expect("install fail");
