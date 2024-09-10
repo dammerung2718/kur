@@ -1,6 +1,9 @@
+use clap::Parser;
 use std::{fs, process, str};
 
-use clap::Parser;
+const CARGO_TAG: &str = "#cargo";
+const UBUNTU_TAG: &str = "#ubuntu";
+const BREW_TAG: &str = "#brew";
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None)]
@@ -48,7 +51,7 @@ fn fmt() {
 
     let ubuntu: Vec<_> = packages
         .iter()
-        .filter(|p| p.tags.contains(&"#ubuntu") && p.tags.len() == 1)
+        .filter(|p| p.tags.contains(&UBUNTU_TAG) && p.tags.len() == 1)
         .collect();
     if !ubuntu.is_empty() {
         let mut ubuntu = fmt_packages(&ubuntu);
@@ -59,7 +62,7 @@ fn fmt() {
 
     let brew: Vec<_> = packages
         .iter()
-        .filter(|p| p.tags.contains(&"#brew") && p.tags.len() == 1)
+        .filter(|p| p.tags.contains(&BREW_TAG) && p.tags.len() == 1)
         .collect();
     if !brew.is_empty() {
         let mut brew = fmt_packages(&brew);
@@ -70,7 +73,7 @@ fn fmt() {
 
     let cargo: Vec<_> = packages
         .iter()
-        .filter(|p| p.tags.contains(&"#cargo") && p.tags.len() == 1)
+        .filter(|p| p.tags.contains(&CARGO_TAG) && p.tags.len() == 1)
         .collect();
     if !cargo.is_empty() {
         let mut cargo = fmt_packages(&cargo);
@@ -115,7 +118,7 @@ fn install_platform_packages(ostype: os_type::OSType, packages: &[Package]) {
         os_type::OSType::Ubuntu => {
             let ubuntu: Vec<_> = packages
                 .iter()
-                .filter(|p| p.tags.contains(&"#ubuntu"))
+                .filter(|p| p.tags.contains(&UBUNTU_TAG))
                 .collect();
             if !ubuntu.is_empty() {
                 install_ubuntu(&ubuntu);
@@ -124,7 +127,7 @@ fn install_platform_packages(ostype: os_type::OSType, packages: &[Package]) {
         os_type::OSType::OSX => {
             let brew: Vec<_> = packages
                 .iter()
-                .filter(|p| p.tags.contains(&"#bre"))
+                .filter(|p| p.tags.contains(&BREW_TAG))
                 .collect();
             if !brew.is_empty() {
                 install_brew(&brew);
@@ -140,7 +143,7 @@ fn install_platform_packages(ostype: os_type::OSType, packages: &[Package]) {
 fn install_brew(packages: &[&Package]) {
     let packages = packages
         .iter()
-        .filter(|p| p.tags.contains(&"#brew"))
+        .filter(|p| p.tags.contains(&BREW_TAG))
         .map(|p| p.name);
     process::Command::new("brew")
         .arg("install")
@@ -153,11 +156,12 @@ fn install_brew(packages: &[&Package]) {
 fn install_cargo(packages: &[Package]) {
     let packages = packages
         .iter()
-        .filter(|p| p.tags.contains(&"#cargo"))
+        .filter(|p| p.tags.contains(&CARGO_TAG))
         .map(|p| p.name);
     process::Command::new("cargo")
         .arg("install")
         .args(packages)
+        .stderr(process::Stdio::null())
         .status()
         .expect("install fail");
 }
@@ -165,22 +169,14 @@ fn install_cargo(packages: &[Package]) {
 fn install_ubuntu(packages: &[&Package]) {
     let packages = packages
         .iter()
-        .filter(|p| p.tags.contains(&"#ubuntu"))
+        .filter(|p| p.tags.contains(&UBUNTU_TAG))
         .map(|p| p.name);
-    let apt = process::Command::new("sudo")
+    process::Command::new("sudo")
         .args(["apt", "install"])
         .args(packages)
-        .output()
+        .stderr(process::Stdio::null())
+        .status()
         .expect("install fail");
-
-    let stdout = str::from_utf8(&apt.stdout).expect("invalid utf-8 output");
-    let stdout_lines = stdout
-        .split('\n')
-        .map(|l| l.trim())
-        .filter(|l| !l.contains("is already the newest version") && !l.is_empty());
-    for line in stdout_lines {
-        println!("{}", line.trim());
-    }
 }
 
 fn get_packages(kurfile: &str) -> Vec<Package> {
