@@ -185,8 +185,6 @@ fn install_cargo(packages: &[Package]) {
         .map(|p| p.name);
     process::Command::new("cargo")
         .arg("binstall")
-        .arg("--strategies")
-        .arg("crate-meta-data")
         .args(packages)
         .status()
         .expect("install fail");
