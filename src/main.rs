@@ -5,6 +5,7 @@ const KURFILE: &str = "kurfile";
 const CARGO_TAG: &str = "#cargo";
 const UBUNTU_TAG: &str = "#ubuntu";
 const BREW_TAG: &str = "#brew";
+const ALPINE_TAG: &str = "#alpine";
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None)]
@@ -67,6 +68,17 @@ fn fmt(packages: &[Package]) {
         let mut common = fmt_packages(&common);
         formatted.push("# Common Packages".into());
         formatted.append(&mut common);
+        formatted.push("".into());
+    }
+
+    let alpine: Vec<_> = packages
+        .iter()
+        .filter(|p| p.tags.contains(&ALPINE_TAG) && p.tags.len() == 1)
+        .collect();
+    if !alpine.is_empty() {
+        let mut alpine = fmt_packages(&alpine);
+        formatted.push("# Alpine Packages".into());
+        formatted.append(&mut alpine);
         formatted.push("".into());
     }
 
@@ -138,18 +150,44 @@ fn install_platform_packages(ostype: os_type::OSType, packages: &[Package]) {
             let ubuntu: Vec<_> = packages
                 .iter()
                 .filter(|p| p.tags.contains(&UBUNTU_TAG))
+                .map(|p| p.name)
                 .collect();
             if !ubuntu.is_empty() {
-                install_ubuntu(&ubuntu);
+                process::Command::new("sudo")
+                    .args(["apt", "install"])
+                    .args(ubuntu)
+                    .stderr(process::Stdio::null())
+                    .status()
+                    .expect("install fail");
+            }
+        }
+        os_type::OSType::Alpine => {
+            let alpine: Vec<_> = packages
+                .iter()
+                .filter(|p| p.tags.contains(&ALPINE_TAG))
+                .map(|p| p.name)
+                .collect();
+            if !alpine.is_empty() {
+                process::Command::new("doas")
+                    .args(["apk", "add"])
+                    .args(alpine)
+                    .status()
+                    .expect("install fail");
             }
         }
         os_type::OSType::OSX => {
             let brew: Vec<_> = packages
                 .iter()
                 .filter(|p| p.tags.contains(&BREW_TAG))
+                .map(|p| p.name)
                 .collect();
             if !brew.is_empty() {
-                install_brew(&brew);
+                process::Command::new("brew")
+                    .arg("install")
+                    .args(brew)
+                    .stderr(process::Stdio::null())
+                    .status()
+                    .expect("install fail");
             }
         }
         _ => {
@@ -157,19 +195,6 @@ fn install_platform_packages(ostype: os_type::OSType, packages: &[Package]) {
             process::exit(1);
         }
     }
-}
-
-fn install_brew(packages: &[&Package]) {
-    let packages = packages
-        .iter()
-        .filter(|p| p.tags.contains(&BREW_TAG))
-        .map(|p| p.name);
-    process::Command::new("brew")
-        .arg("install")
-        .args(packages)
-        .stderr(process::Stdio::null())
-        .status()
-        .expect("install fail");
 }
 
 fn install_cargo(packages: &[Package]) {
@@ -186,19 +211,6 @@ fn install_cargo(packages: &[Package]) {
     process::Command::new("cargo")
         .arg("binstall")
         .args(packages)
-        .status()
-        .expect("install fail");
-}
-
-fn install_ubuntu(packages: &[&Package]) {
-    let packages = packages
-        .iter()
-        .filter(|p| p.tags.contains(&UBUNTU_TAG))
-        .map(|p| p.name);
-    process::Command::new("sudo")
-        .args(["apt", "install"])
-        .args(packages)
-        .stderr(process::Stdio::null())
         .status()
         .expect("install fail");
 }

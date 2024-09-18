@@ -33,6 +33,7 @@ Supported platforms are
 - Cargo
 - OSX/Homebrew
 - Ubuntu
+- Alpine
 
 ## Installation
 
