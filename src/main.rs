@@ -235,8 +235,8 @@ fn install_pip(packages: &[Package]) {
         .iter()
         .filter(|p| p.tags.contains(&PIP_TAG))
         .map(|p| p.name);
-    process::Command::new("python3")
-        .args(["-m", "pip", "install"])
+    process::Command::new("pipx")
+        .arg("install")
         .args(packages)
         .status()
         .expect("install fail");
