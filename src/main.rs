@@ -6,6 +6,7 @@ const CARGO_TAG: &str = "#cargo";
 const UBUNTU_TAG: &str = "#ubuntu";
 const BREW_TAG: &str = "#brew";
 const ALPINE_TAG: &str = "#alpine";
+const PIP_TAG: &str = "#pip";
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None)]
@@ -115,6 +116,17 @@ fn fmt(packages: &[Package]) {
         formatted.push("".into());
     }
 
+    let pip: Vec<_> = packages
+        .iter()
+        .filter(|p| p.tags.contains(&PIP_TAG) && p.tags.len() == 1)
+        .collect();
+    if !pip.is_empty() {
+        let mut pip = fmt_packages(&pip);
+        formatted.push("# Pip Packages".into());
+        formatted.append(&mut pip);
+        formatted.push("".into());
+    }
+
     let formatted = formatted.join("\n");
     fs::write(KURFILE, formatted).expect("write fail");
 }
@@ -140,6 +152,9 @@ fn sync(packages: &[Package]) {
 
     println!(">>> Installing Cargo Packages");
     install_cargo(packages);
+
+    println!(">>> Installing Pip Packages");
+    install_pip(packages);
 
     println!(">>> All Good");
 }
@@ -210,6 +225,18 @@ fn install_cargo(packages: &[Package]) {
         .map(|p| p.name);
     process::Command::new("cargo")
         .arg("binstall")
+        .args(packages)
+        .status()
+        .expect("install fail");
+}
+
+fn install_pip(packages: &[Package]) {
+    let packages = packages
+        .iter()
+        .filter(|p| p.tags.contains(&PIP_TAG))
+        .map(|p| p.name);
+    process::Command::new("python3")
+        .args(["-m", "pip", "install"])
         .args(packages)
         .status()
         .expect("install fail");

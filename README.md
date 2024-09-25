@@ -34,6 +34,7 @@ Supported platforms are
 - OSX/Homebrew
 - Ubuntu
 - Alpine
+- Pip
 
 ## Installation
 
