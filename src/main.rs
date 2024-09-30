@@ -200,7 +200,6 @@ fn install_platform_packages(ostype: os_type::OSType, packages: &[Package]) {
                 process::Command::new("brew")
                     .arg("install")
                     .args(brew)
-                    .stderr(process::Stdio::null())
                     .status()
                     .expect("install fail");
             }
